@@ -1,48 +1,42 @@
 import streamlit as st
+import requests
+from datetime import datetime
+import pandas as pd
 
-'''
-# TaxiFareModel front
-'''
+st.title("TaxiFareModel front")
+st.caption("Enter ride details and get a fare prediction from the API.")
 
-st.markdown('''
-Remember that there are several ways to output content into your web page...
+# Use your Cloud Run URL if you have one; fallback to Le Wagon demo API
+API_URL = st.secrets.get("SERVICE_URL", "https://taxifare.lewagon.ai/predict")
 
-Either as with the title by just creating a string (or an f-string). Or as with this paragraph using the `st.` functions
-''')
+with st.form("inputs"):
+    pickup_datetime = st.datetime_input("Pickup datetime", value=datetime.now())
+    pickup_lon = st.number_input("Pickup longitude", value=-73.985428, format="%.6f")
+    pickup_lat = st.number_input("Pickup latitude", value=40.748817, format="%.6f")
+    dropoff_lon = st.number_input("Dropoff longitude", value=-73.985000, format="%.6f")
+    dropoff_lat = st.number_input("Dropoff latitude", value=40.758896, format="%.6f")
+    passenger_count = st.number_input("Passenger count", min_value=1, max_value=8, value=1, step=1)
+    submit = st.form_submit_button("Predict fare")
 
-'''
-## Here we would like to add some controllers in order to ask the user to select the parameters of the ride
+if submit:
+    params = {
+        "pickup_datetime": pickup_datetime.strftime("%Y-%m-%d %H:%M:%S"),
+        "pickup_longitude": pickup_lon,
+        "pickup_latitude": pickup_lat,
+        "dropoff_longitude": dropoff_lon,
+        "dropoff_latitude": dropoff_lat,
+        "passenger_count": int(passenger_count),
+    }
+    try:
+        r = requests.get(API_URL, params=params, timeout=10)
+        r.raise_for_status()
+        data = r.json()
+        # many APIs return {"fare": <value>} or {"prediction": <value>}
+        fare = data.get("fare") or data.get("prediction") or data
+        st.success(f"Predicted fare: {fare}")
+    except Exception as e:
+        st.error(f"API request failed: {e}")
 
-1. Let's ask for:
-- date and time
-- pickup longitude
-- pickup latitude
-- dropoff longitude
-- dropoff latitude
-- passenger count
-'''
-
-'''
-## Once we have these, let's call our API in order to retrieve a prediction
-
-See ? No need to load a `model.joblib` file in this app, we do not even need to know anything about Data Science in order to retrieve a prediction...
-
-🤔 How could we call our API ? Off course... The `requests` package 💡
-'''
-
-url = 'https://taxifare-api-xyz-ew.a.run.app/predict'
-
-if url == 'https://taxifare.lewagon.ai/predict':
-
-    st.markdown('Maybe you want to use your own API for the prediction, not the one provided by Le Wagon...')
-
-'''
-
-2. Let's build a dictionary containing the parameters for our API...
-
-3. Let's call our API using the `requests` package...
-
-4. Let's retrieve the prediction from the **JSON** returned by the API...
-
-## Finally, we can display the prediction to the user
-'''
+# Optional: map preview
+st.subheader("Map preview")
+st.map(pd.DataFrame({"lat": [pickup_lat, dropoff_lat], "lon": [pickup_lon, dropoff_lon]}))

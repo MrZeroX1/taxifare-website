@@ -1,16 +1,16 @@
 import streamlit as st
 import requests
-from datetime import datetime
+from datetime import datetime, date
 import pandas as pd
 
 st.title("TaxiFareModel front")
-st.caption("Enter ride details and get a fare prediction from the API.")
-
-# Use your Cloud Run URL if you have one; fallback to Le Wagon demo API
 API_URL = st.secrets.get("SERVICE_URL", "https://taxifare.lewagon.ai/predict")
 
 with st.form("inputs"):
-    pickup_datetime = st.datetime_input("Pickup datetime", value=datetime.now())
+    d = st.date_input("Pickup date", value=date.today())
+    t = st.time_input("Pickup time", value=datetime.now().time())
+    pickup_datetime = datetime.combine(d, t)
+
     pickup_lon = st.number_input("Pickup longitude", value=-73.985428, format="%.6f")
     pickup_lat = st.number_input("Pickup latitude", value=40.748817, format="%.6f")
     dropoff_lon = st.number_input("Dropoff longitude", value=-73.985000, format="%.6f")
@@ -31,9 +31,7 @@ if submit:
         r = requests.get(API_URL, params=params, timeout=10)
         r.raise_for_status()
         data = r.json()
-        # many APIs return {"fare": <value>} or {"prediction": <value>}
-        fare = data.get("fare") or data.get("prediction") or data
-        st.success(f"Predicted fare: {fare}")
+        st.success(f"Predicted fare: {data.get('fare') or data.get('prediction') or data}")
     except Exception as e:
         st.error(f"API request failed: {e}")
 
